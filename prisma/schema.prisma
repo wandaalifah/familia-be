@@ -1,0 +1,88 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["views"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  CUSTOMER
+}
+
+model users {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  password    String   
+  phone       String   @unique
+  first_name  String
+  last_name   String
+  role        Role     @default(CUSTOMER) 
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  membership  membership?
+  redemptions redemption_history[]
+}
+
+model tiers {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  // benefits in long text format
+  description     String?
+  level           Int      @unique
+  required_points Int      @default(0) // threshold points to reach this tier
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  memberships     membership[]
+  old_tier_history membership_tier_history[] @relation("OldTier")
+  new_tier_history membership_tier_history[] @relation("NewTier")
+}
+
+// need to add seasonal points (will reset every year) to the membership model
+// seasonal point will be used to determine if a user is eligible for a tier upgrade
+// 
+model membership {
+  id              String   @id @default(uuid())
+  points          Int      @default(0)
+  seasonal_points Int   @default(0)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  userId          String   @unique
+  users           users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tierId          String?
+  tiers           tiers?   @relation(fields: [tierId], references: [id], onDelete: SetNull)
+  tier_history    membership_tier_history[]
+}
+
+model membership_tier_history {
+  id           String   @id @default(uuid())
+  created_at   DateTime @default(now())
+  membershipId String
+  membership   membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  oldTierId    String?
+  old_tier     tiers?   @relation("OldTier", fields: [oldTierId], references: [id], onDelete: SetNull)
+  newTierId    String?
+  new_tier     tiers?   @relation("NewTier", fields: [newTierId], references: [id], onDelete: SetNull)
+}
+
+model coupon {
+  id          String   @id @default(uuid())
+  title       String
+  description String?  
+  points_cost Int      
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  redemptions redemption_history[]
+}
+
+model redemption_history {
+  id           String   @id @default(uuid())
+  points_spent Int  
+  created_at   DateTime @default(now())
+  userId       String
+  users        users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  couponId     String
+  coupon       coupon   @relation(fields: [couponId], references: [id], onDelete: Restrict)
+}
