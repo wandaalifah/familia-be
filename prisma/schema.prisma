@@ -12,48 +12,89 @@ enum Role {
   CUSTOMER
 }
 
+enum PointTransactionType {
+  EARNED    // Plus points from treatments/transactions
+  REDEEMED  // Minus points from redemptions
+  ADJUSTMENT // Manual admin adjustments
+}
+
 model users {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  password    String   
-  phone       String   @unique
-  first_name  String
-  last_name   String
-  role        Role     @default(CUSTOMER) 
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-  membership  membership?
-  redemptions redemption_history[]
+  id                    String               @id @default(uuid())
+  email                 String               @unique
+  password              String   
+  phone                 String               @unique
+  first_name            String
+  last_name             String
+  role                  Role                 @default(CUSTOMER) 
+  hashed_refresh_token  String?
+  created_at            DateTime             @default(now())
+  updated_at            DateTime             @updatedAt
+  membership            membership?
+  pets                  pet[]                // Relation to pets
+  redemptions           redemption_history[]
+}
+
+model pet {
+  id          String            @id @default(uuid())
+  userId      String
+  users       users             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  species     String?           // e.g., Dog, Cat, etc.
+  breed       String?
+  birth_date  DateTime?
+  created_at  DateTime          @default(now())
+  updated_at  DateTime          @updatedAt
+  vaccines    vaccine_history[] // Relation to vaccine history
+}
+
+model vaccine_history {
+  id              String   @id @default(uuid())
+  petId           String
+  pet             pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  vaccine_name    String
+  administered_at DateTime
+  next_due_date   DateTime?
+  notes           String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 }
 
 model tiers {
-  id              String   @id @default(uuid())
-  name            String   @unique
-  // benefits in long text format
-  description     String?
-  level           Int      @unique
-  required_points Int      @default(0) // threshold points to reach this tier
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
-  memberships     membership[]
+  id               String                    @id @default(uuid())
+  name             String                    @unique
+  description      String?
+  level            Int                       @unique
+  required_points  Int                       @default(0)
+  created_at       DateTime                  @default(now())
+  updated_at       DateTime                  @updatedAt
+  memberships      membership[]
   old_tier_history membership_tier_history[] @relation("OldTier")
   new_tier_history membership_tier_history[] @relation("NewTier")
 }
 
-// need to add seasonal points (will reset every year) to the membership model
-// seasonal point will be used to determine if a user is eligible for a tier upgrade
-// 
 model membership {
-  id              String   @id @default(uuid())
-  points          Int      @default(0)
-  seasonal_points Int   @default(0)
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
-  userId          String   @unique
-  users           users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String                    @id @default(uuid())
+  points          Int                       @default(0)
+  seasonal_points Int                       @default(0)
+  created_at      DateTime                  @default(now())
+  updated_at      DateTime                  @updatedAt
+  userId          String                    @unique
+  users           users                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tierId          String?
-  tiers           tiers?   @relation(fields: [tierId], references: [id], onDelete: SetNull)
+  tiers           tiers?                    @relation(fields: [tierId], references: [id], onDelete: SetNull)
   tier_history    membership_tier_history[]
+  points_history  points_history[]          // Ledger for all point changes
+}
+
+model points_history {
+  id           String               @id @default(uuid())
+  membershipId String
+  membership   membership           @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  amount       Int                  // Positive (+) for earned, Negative (-) for spent
+  type         PointTransactionType
+  description  String?              // e.g., "Grooming treatment", "Redeemed Coupon X"
+  reference_id String?              // Optional ID linking to an external transaction/invoice or redemption_history ID
+  created_at   DateTime             @default(now())
 }
 
 model membership_tier_history {
@@ -62,18 +103,18 @@ model membership_tier_history {
   membershipId String
   membership   membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   oldTierId    String?
-  old_tier     tiers?   @relation("OldTier", fields: [oldTierId], references: [id], onDelete: SetNull)
+  old_tier     tiers?     @relation("OldTier", fields: [oldTierId], references: [id], onDelete: SetNull)
   newTierId    String?
-  new_tier     tiers?   @relation("NewTier", fields: [newTierId], references: [id], onDelete: SetNull)
+  new_tier     tiers?     @relation("NewTier", fields: [newTierId], references: [id], onDelete: SetNull)
 }
 
 model coupon {
-  id          String   @id @default(uuid())
+  id          String               @id @default(uuid())
   title       String
   description String?  
   points_cost Int      
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  created_at  DateTime             @default(now())
+  updated_at  DateTime             @updatedAt
   redemptions redemption_history[]
 }
 
