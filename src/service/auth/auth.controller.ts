@@ -3,6 +3,8 @@ import { AuthService } from "./auth.service";
 import { CLoginDto } from "./dto/login.dto";
 import { CRefreshDto } from "./dto/refresh.dto";
 import { CRegisterAdminDto } from "./dto/register-admin.dto";
+import { CRegisterClientDto } from "./dto/register-client.dto";
+import { CChangePasswordDto } from "./dto/change-password.dto";
 import { JwtAuthGuard } from "./guard/jwt-auth.guard";
 
 @Controller('/auth')
@@ -25,8 +27,19 @@ export class AuthController {
     return this.authService.logout(req.user.id);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Post('/change-password')
+  changePassword(@Request() req: any, @Body() body: CChangePasswordDto) {
+    return this.authService.changePassword(req.user.id, body);
+  }
+
   @Post('/register-admin')
   registerAdmin(@Body() body: CRegisterAdminDto) {
     return this.authService.registerAdmin(body);
+  }
+
+  @Post('/register-client')
+  registerClient(@Body() body: CRegisterClientDto) {
+    return this.authService.registerClient(body);
   }
 }

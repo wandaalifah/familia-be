@@ -20,9 +20,9 @@ export const JRefreshJob = async (
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    // Find user
+    // Find user (exclude soft-deleted users)
     const user = await prisma.users.findUnique({
-      where: { id: payload.sub },
+      where: { id: payload.sub, deleted_at: null },
     });
 
     if (!user || !user.hashed_refresh_token) {

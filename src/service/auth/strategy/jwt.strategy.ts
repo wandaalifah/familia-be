@@ -14,8 +14,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
+    // Exclude soft-deleted users
     const user = await this.prisma.users.findUnique({
-      where: { id: payload.sub },
+      where: { id: payload.sub, deleted_at: null },
     });
 
     if (!user) {

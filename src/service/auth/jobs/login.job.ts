@@ -13,9 +13,10 @@ export const JLoginJob = async (
   try {
     const { username, password } = body;
 
-    // Find user by email or phone
+    // Find user by email or phone (exclude soft-deleted users)
     const user = await prisma.users.findFirst({
       where: {
+        deleted_at: null,
         OR: [
           { email: username },
           { phone: username },

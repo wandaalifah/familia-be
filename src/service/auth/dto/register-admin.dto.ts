@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import { createZodDto } from 'nestjs-zod';
 import { Prisma } from '@prisma/client';
+import { passwordSchema } from '../../../common/dto/password.dto';
 
 export const registerAdminSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: passwordSchema,
   phone: z.string().min(8),
   first_name: z.string().min(1),
   last_name: z.string().min(1),

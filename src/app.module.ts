@@ -7,6 +7,9 @@ import { MembershipModule } from './service/membership/membership.module';
 import { PointsModule } from './service/points/points.module';
 import { RewardModule } from './service/reward/reward.module';
 import { TiersModule } from './service/tiers/tiers.module';
+import { PetModule } from './service/pet/pet.module';
+import { MedicalHistoryModule } from './service/medical-history/medical-history.module';
+import { UserModule } from './service/user/user.module';
 
 @Module({
   imports: [
@@ -16,6 +19,9 @@ import { TiersModule } from './service/tiers/tiers.module';
     PointsModule,
     RewardModule,
     TiersModule,
+    PetModule,
+    MedicalHistoryModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],

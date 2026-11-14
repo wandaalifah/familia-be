@@ -8,15 +8,15 @@ export const JCreateMembershipJob = async (
   body: CCreateMembershipDto,
 ): Promise<CreateMembershipResponse> => {
   try {
-    const { email, phone, first_name, last_name } = body;
+    const { email, phone, first_name, last_name, password } = body;
 
     // Find the tier with the lowest level
     const lowestTier = await prisma.tiers.findFirst({
       orderBy: { level: 'asc' },
     });
 
-    // Hash default password
-    const defaultPassword = await bcrypt.hash('secret123', 10);
+    // Hash password (fall back to default when not provided)
+    const hashedPassword = await bcrypt.hash(password || 'secret123', 10);
 
     // Create user and membership in a transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -24,7 +24,7 @@ export const JCreateMembershipJob = async (
       const user = await tx.users.create({
         data: {
           email,
-          password: defaultPassword,
+          password: hashedPassword,
           phone,
           first_name,
           last_name: last_name ?? '',

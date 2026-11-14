@@ -12,6 +12,13 @@ enum Role {
   CUSTOMER
 }
 
+enum MedicalRecordType {
+VACCINE
+GROOMING
+RAWAT_INAP
+RAWAT_JALAN
+}
+
 enum PointTransactionType {
   EARNED    // Plus points from treatments/transactions
   REDEEMED  // Minus points from redemptions
@@ -27,36 +34,49 @@ model users {
   last_name             String
   role                  Role                 @default(CUSTOMER) 
   hashed_refresh_token  String?
+  avatar                String?              
   created_at            DateTime             @default(now())
   updated_at            DateTime             @updatedAt
+  deleted_at            DateTime?            
   membership            membership?
   pets                  pet[]                // Relation to pets
   redemptions           redemption_history[]
 }
 
 model pet {
-  id          String            @id @default(uuid())
-  userId      String
-  users       users             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  species     String?           // e.g., Dog, Cat, etc.
-  breed       String?
-  birth_date  DateTime?
-  created_at  DateTime          @default(now())
-  updated_at  DateTime          @updatedAt
-  vaccines    vaccine_history[] // Relation to vaccine history
+  id              String            @id @default(uuid())
+  userId          String
+  users           users             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  species         String?           // e.g., Anjing (Dog), Kucing (Cat), Kelinci (Rabbit)
+  breed           String?           // e.g., Golden Retriever, British Shorthair
+  birth_date      DateTime?
+  is_neutered     Boolean?          @default(false)
+  avatar          String?           // Added for Pet Avatar/Photo rendering in FE
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+  deleted_at      DateTime?
+
+  medical_history medical_history[] // Relation to vet medical history
 }
 
-model vaccine_history {
-  id              String   @id @default(uuid())
+model medical_history {
+  id              String            @id @default(uuid())
   petId           String
-  pet             pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
-  vaccine_name    String
-  administered_at DateTime
-  next_due_date   DateTime?
-  notes           String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  pet             pet               @relation(fields: [petId], references: [id], onDelete: Cascade)
+  type            MedicalRecordType // VACCINE, DEWORMING, GROOMING, RAWAT_INAP, CHECKUP, SURGERY
+  title           String            // e.g., "Vaksin Rabies Quad & DHPPi Booster"
+  description     String?           // Detailed diagnosis / service summary
+  vaccine_name    String?           // Only populated when type == VACCINE
+  administered_at DateTime          // When treatment/service was given
+  next_due_date   DateTime?         // Next due date (for vaccines, deworming, grooming follow-up)
+  discharged_at   DateTime?         // Only populated when type == RAWAT_INAP
+  notes           String?           // Clinical notes or post-op instructions
+  doctor_name     String?           // Added: Attending Veterinarian (e.g., "drh. Anisa Putri")
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+
+  @@index([petId])
 }
 
 model tiers {
