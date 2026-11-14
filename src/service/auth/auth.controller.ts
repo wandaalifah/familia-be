@@ -1,4 +1,5 @@
 import { Controller, Post, Body, UseGuards, Request } from "@nestjs/common";
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from "./auth.service";
 import { CLoginDto } from "./dto/login.dto";
 import { CRefreshDto } from "./dto/refresh.dto";
@@ -11,11 +12,15 @@ import { JwtAuthGuard } from "./guard/jwt-auth.guard";
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('/login')
   login(@Body() body: CLoginDto) {
     return this.authService.login(body);
   }
 
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('/refresh-token')
   refresh(@Body() body: CRefreshDto) {
     return this.authService.refresh(body);
@@ -33,11 +38,15 @@ export class AuthController {
     return this.authService.changePassword(req.user.id, body);
   }
 
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('/register-admin')
   registerAdmin(@Body() body: CRegisterAdminDto) {
     return this.authService.registerAdmin(body);
   }
 
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('/register-client')
   registerClient(@Body() body: CRegisterClientDto) {
     return this.authService.registerClient(body);
