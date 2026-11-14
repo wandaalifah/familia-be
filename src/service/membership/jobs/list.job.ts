@@ -1,14 +1,14 @@
-import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
-import { ListMembershipDto, ListMembershipResponse } from '../dto/list.dto';
+import { CGetMembershipListDto, MembershipItem } from '../dto/list.dto';
+import { IGlobalPaginationDto } from '../../../common/dto/pagination.dto';
 
-@Injectable()
-export class ListMembershipJob {
-  constructor(private readonly prisma: PrismaService) {}
-
-  async execute(dto: ListMembershipDto): Promise<ListMembershipResponse> {
-    const { page, limit, name, email, phone, sort_by, sort_order, search_by, search } = dto;
+export const JGetMembershipListJob = async (
+  prisma: PrismaService,
+  query: CGetMembershipListDto,
+): Promise<{ data: MembershipItem[]; pagination: IGlobalPaginationDto }> => {
+  try {
+    const { page, limit, name, email, phone, sort_by, sort_order, search_by, search } = query;
 
     const where: Prisma.membershipWhereInput = {};
 
@@ -86,11 +86,11 @@ export class ListMembershipJob {
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
-      this.prisma.membership.findMany({
+      prisma.membership.findMany({
         where,
         orderBy,
         skip,
-        take: limit,
+        take: +limit,
         include: {
           users: {
             select: {
@@ -111,17 +111,33 @@ export class ListMembershipJob {
           },
         },
       }),
-      this.prisma.membership.count({ where }),
+      prisma.membership.count({ where }),
     ]);
 
+    const normalizedData = data.map((item) => ({
+      ...item,
+      users: item.users
+        ? {
+            ...item.users,
+            last_name: item.users.last_name ?? undefined,
+          }
+        : undefined,
+    }));
+
+    const total_pages = Math.ceil(total / limit);
+
     return {
-      data,
-      meta: {
-        total,
-        page,
-        limit,
-        total_pages: Math.ceil(total / limit),
+      data: normalizedData as MembershipItem[],
+      pagination: {
+        current_page: page,
+        total_page: total_pages,
+        total_data: total,
+        next: page < total_pages ? `?page=${page + 1}&limit=${limit}` : null,
+        prev: page > 1 ? `?page=${page - 1}&limit=${limit}` : null,
       },
     };
+  } catch (error) {
+    console.error('Error in JGetMembershipListJob:', error);
+    throw error;
   }
 }

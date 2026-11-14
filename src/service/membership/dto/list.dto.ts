@@ -1,14 +1,14 @@
 import { z } from 'zod';
 import { createZodDto } from 'nestjs-zod';
+import { Prisma } from '@prisma/client';
+import { globalPaginationQuerySchema } from '../../../common/dto/pagination.dto';
 
-export const listMembershipSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(10),
+export const listMembershipSchema = globalPaginationQuerySchema.extend({
   name: z.string().optional(),
   email: z.string().optional(),
   phone: z.string().optional(),
   sort_by: z
-    .enum(['created_at', 'points', 'lifetime_points', 'first_name', 'email'])
+    .enum(['created_at', 'points', 'seasonal_points', 'first_name', 'email'])
     .default('created_at'),
   sort_order: z.enum(['asc', 'desc']).default('desc'),
   search_by: z.enum(['name', 'email', 'phone']).optional(),
@@ -16,43 +16,28 @@ export const listMembershipSchema = z.object({
   tier_id: z.coerce.number().int().optional(),
 });
 
-export class ListMembershipDto extends createZodDto(listMembershipSchema) {}
+export class CGetMembershipListDto extends createZodDto(listMembershipSchema) {}
 
-interface MembershipUser {
-  id: string;
-  email: string;
-  phone: string;
-  first_name: string;
-  last_name: string;
-  role: string;
-}
+const membershipItemArgs = Prisma.validator<Prisma.membershipDefaultArgs>()({
+  include: {
+    users: {
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        first_name: true,
+        last_name: true,
+        role: true,
+      },
+    },
+    tiers: {
+      select: {
+        id: true,
+        name: true,
+        required_points: true,
+      },
+    },
+  },
+});
 
-interface MembershipTier {
-  id: string;
-  name: string;
-  required_points: number;
-}
-
-interface MembershipItem {
-  id: string;
-  points: number;
-  lifetime_points: number;
-  created_at: Date;
-  updated_at: Date;
-  userId: string;
-  tierId: string | null;
-  users: MembershipUser;
-  tiers: MembershipTier | null;
-}
-
-interface PaginationMeta {
-  total: number;
-  page: number;
-  limit: number;
-  total_pages: number;
-}
-
-export interface ListMembershipResponse {
-  data: MembershipItem[];
-  meta: PaginationMeta;
-}
+export type MembershipItem = Prisma.membershipGetPayload<typeof membershipItemArgs>;
