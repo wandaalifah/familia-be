@@ -5,7 +5,7 @@ import { Prisma } from '@prisma/client';
 export const updateRewardSchema = z.object({
   title: z.string().min(1).optional(),
   description: z.string().optional(),
-  points_cost: z.coerce.number().int().min(0).optional(),
+  points_cost: z.coerce.number().int().min(1).optional(),
 });
 
 export class CUpdateRewardDto extends createZodDto(updateRewardSchema) {}

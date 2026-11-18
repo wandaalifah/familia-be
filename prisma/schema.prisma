@@ -14,9 +14,16 @@ enum Role {
 
 enum MedicalRecordType {
 VACCINE
+DEWORMING
 GROOMING
 RAWAT_INAP
 RAWAT_JALAN
+}
+
+enum NotificationCategory {
+  PRE_VACCINE_DEWORMING // H-14 before a vaccine due date: deworming/flea must be given by H-7
+  VACCINE_REMINDER      // H-7 before a vaccine due date
+  DEWORMING_ROUTINE     // 30 days after the last DEWORMING record
 }
 
 enum PointTransactionType {
@@ -41,6 +48,7 @@ model users {
   membership            membership?
   pets                  pet[]                // Relation to pets
   redemptions           redemption_history[]
+  notifications         notification_history[]
 }
 
 model pet {
@@ -58,25 +66,50 @@ model pet {
   deleted_at      DateTime?
 
   medical_history medical_history[] // Relation to vet medical history
+  notifications   notification_history[]
 }
 
 model medical_history {
-  id              String            @id @default(uuid())
-  petId           String
-  pet             pet               @relation(fields: [petId], references: [id], onDelete: Cascade)
-  type            MedicalRecordType // VACCINE, DEWORMING, GROOMING, RAWAT_INAP, CHECKUP, SURGERY
-  title           String            // e.g., "Vaksin Rabies Quad & DHPPi Booster"
-  description     String?           // Detailed diagnosis / service summary
-  vaccine_name    String?           // Only populated when type == VACCINE
-  administered_at DateTime          // When treatment/service was given
-  next_due_date   DateTime?         // Next due date (for vaccines, deworming, grooming follow-up)
-  discharged_at   DateTime?         // Only populated when type == RAWAT_INAP
-  notes           String?           // Clinical notes or post-op instructions
-  doctor_name     String?           // Added: Attending Veterinarian (e.g., "drh. Anisa Putri")
-  created_at      DateTime          @default(now())
-  updated_at      DateTime          @updatedAt
+  id                 String            @id @default(uuid())
+  petId              String
+  pet                pet               @relation(fields: [petId], references: [id], onDelete: Cascade)
+  type               MedicalRecordType // VACCINE, DEWORMING, GROOMING, RAWAT_INAP, CHECKUP, SURGERY
+  title              String            // e.g., "Rawat Inap Hari ke-1" atau "Checkup Rhinitis"
+  
+  // --- Pemeriksaan Utama ---
+  complaint          String?           // Keluhan utama / keterangan (e.g., "Vulnus, mata bengkak")
+  clinical_signs     String?           // Gejala klinis / hasil pemeriksaan fisik detail (di luar vital sign)
+  diagnosis          String?           // Diagnosa (e.g., "Susp. FHV, Scabies")
+  
+  // --- Vital Signs & Observasi Harian ---
+  weight             Float?            // Berat badan dalam kg (e.g., 2.2)
+  temperature        Float?            // Suhu tubuh dalam °C (e.g., 38.5)
+  appetite           String?           // Makan & Minum (e.g., "wf reco suap", "Makan minum masih mau")
+  defecation         String?           // Pup / BAB (e.g., "Normal", "Tidak terpantau")
+  urination          String?           // Pip / BAK (e.g., "Normal", "VU kosong")
+  vomiting           String?           // Muntah (e.g., "Tidak ada", "Muntah 1x")
+  
+  // --- Tindakan, Obat & Rencana ---
+  treatment          String?           // Tindakan / terapi yang diberikan hari itu
+  prescription       String?           // Resep obat (R/...) & Advice / Rencana tindak lanjut
+  notes              String?           // Catatan tambahan, kondisi awal/akhir, atau progress harian
+  
+  // --- Khusus Vaksin ---
+  vaccine_name       String?           // Only populated when type == VACCINE
+  dose_number        Int?              // Only populated when type == VACCINE (1-based)
+  
+  // --- Waktu & Tenaga Medis ---
+  administered_at    DateTime          // Tanggal & Jam pemeriksaan / tanggal laporan harian rawat inap
+  discharged_at      DateTime?         // Tanggal pulang (diisi pada record hari terakhir RAWAT_INAP)
+  next_due_date      DateTime?         // Jadwal kontrol / vaksin berikutnya
+  doctor_name        String?           // Dokter Penanggung Jawab (DPJP)
+  medical_staff_name String?           // Petugas medis / dokter in-charge / paraf yang menginput data
+  
+  created_at         DateTime          @default(now())
+  updated_at         DateTime          @updatedAt
 
   @@index([petId])
+  @@index([administered_at])
 }
 
 model tiers {
@@ -96,6 +129,7 @@ model membership {
   id              String                    @id @default(uuid())
   points          Int                       @default(0)
   seasonal_points Int                       @default(0)
+  last_season_reset Int?                    // Calendar year of the last year-end reset; guards against double resets
   created_at      DateTime                  @default(now())
   updated_at      DateTime                  @updatedAt
   userId          String                    @unique
@@ -146,4 +180,23 @@ model redemption_history {
   users        users    @relation(fields: [userId], references: [id], onDelete: Cascade)
   couponId     String
   coupon       coupon   @relation(fields: [couponId], references: [id], onDelete: Restrict)
+}
+
+model notification_history {
+  id              String               @id @default(uuid())
+  petId           String
+  pet             pet                  @relation(fields: [petId], references: [id], onDelete: Cascade)
+  userId          String
+  users           users                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category        NotificationCategory
+  target_due_date DateTime             // Due date (start of day, Asia/Jakarta) this reminder is about
+  title           String
+  message         String
+  is_read         Boolean              @default(false)
+  read_at         DateTime?
+  created_at      DateTime             @default(now())
+
+  // One reminder per pet + category + due date; a new due date (new record) re-arms it
+  @@unique([petId, category, target_due_date])
+  @@index([userId, is_read])
 }

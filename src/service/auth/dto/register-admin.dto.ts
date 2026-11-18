@@ -13,4 +13,6 @@ export const registerAdminSchema = z.object({
 
 export class CRegisterAdminDto extends createZodDto(registerAdminSchema) {}
 
-export type RegisterAdminResponse = Prisma.usersGetPayload<{}>;
+export type RegisterAdminResponse = Prisma.usersGetPayload<{
+  omit: { password: true; hashed_refresh_token: true };
+}>;

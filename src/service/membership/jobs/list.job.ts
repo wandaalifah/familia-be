@@ -2,142 +2,113 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { CGetMembershipListDto, MembershipItem } from '../dto/list.dto';
 import { IGlobalPaginationDto } from '../../../common/dto/pagination.dto';
+import { buildPagination } from '../../../common/helpers/pagination';
+import { buildDateRange } from '../../../common/helpers/date-range';
+import { buildNumberRange, containsInsensitive } from '../../../common/helpers/filters';
+
+export const MEMBERSHIP_LIST_INCLUDE = {
+  users: {
+    select: {
+      id: true,
+      email: true,
+      phone: true,
+      first_name: true,
+      last_name: true,
+      role: true,
+    },
+  },
+  tiers: {
+    select: {
+      id: true,
+      name: true,
+      required_points: true,
+    },
+  },
+} satisfies Prisma.membershipInclude;
+
+type MembershipFilterQuery = Pick<
+  CGetMembershipListDto,
+  | 'name'
+  | 'email'
+  | 'phone'
+  | 'search'
+  | 'search_by'
+  | 'tier_id'
+  | 'minPoints'
+  | 'maxPoints'
+  | 'startDate'
+  | 'endDate'
+>;
+
+const nameFilter = (term: string): Prisma.usersWhereInput => {
+  const contains = containsInsensitive(term);
+  return { OR: [{ first_name: contains }, { last_name: contains }] };
+};
+
+const searchFilter = (
+  term: string,
+  searchBy: MembershipFilterQuery['search_by'],
+): Prisma.usersWhereInput => {
+  const contains = containsInsensitive(term);
+  if (searchBy === 'name') return nameFilter(term);
+  if (searchBy === 'email') return { email: contains };
+  if (searchBy === 'phone') return { phone: contains };
+  return {
+    OR: [{ first_name: contains }, { last_name: contains }, { email: contains }, { phone: contains }],
+  };
+};
+
+// Shared by the list and the export. Soft-deleted users are always hidden.
+export const buildMembershipWhere = (
+  query: MembershipFilterQuery,
+): Prisma.membershipWhereInput => {
+  const userFilters: Prisma.usersWhereInput[] = [{ deleted_at: null }];
+  if (query.name) userFilters.push(nameFilter(query.name));
+  if (query.email) userFilters.push({ email: containsInsensitive(query.email) });
+  if (query.phone) userFilters.push({ phone: containsInsensitive(query.phone) });
+  if (query.search) userFilters.push(searchFilter(query.search, query.search_by));
+
+  const points = buildNumberRange(query.minPoints, query.maxPoints);
+  const createdAt = buildDateRange(query.startDate, query.endDate);
+
+  return {
+    users: { AND: userFilters },
+    ...(query.tier_id ? { tierId: query.tier_id } : {}),
+    ...(points ? { points } : {}),
+    ...(createdAt ? { created_at: createdAt } : {}),
+  };
+};
+
+export const buildMembershipOrderBy = (
+  sortBy: CGetMembershipListDto['sort_by'],
+  sortOrder: CGetMembershipListDto['sort_order'],
+): Prisma.membershipOrderByWithRelationInput =>
+  sortBy === 'first_name' || sortBy === 'email'
+    ? { users: { [sortBy]: sortOrder } }
+    : { [sortBy]: sortOrder };
 
 export const JGetMembershipListJob = async (
   prisma: PrismaService,
   query: CGetMembershipListDto,
 ): Promise<{ data: MembershipItem[]; pagination: IGlobalPaginationDto }> => {
   try {
-    const { page, limit, name, email, phone, sort_by, sort_order, search_by, search } = query;
-
-    const where: Prisma.membershipWhereInput = {};
-
-    // Filter by name (search in user's first_name or last_name)
-    if (name) {
-      where.users = {
-        OR: [
-          { first_name: { contains: name, mode: 'insensitive' } },
-          { last_name: { contains: name, mode: 'insensitive' } },
-        ],
-      };
-    }
-
-    // Filter by email
-    if (email) {
-      where.users = {
-        ...((where.users as Prisma.usersWhereInput) ?? {}),
-        email: { contains: email, mode: 'insensitive' },
-      };
-    }
-
-    // Filter by phone
-    if (phone) {
-      where.users = {
-        ...((where.users as Prisma.usersWhereInput) ?? {}),
-        phone: { contains: phone, mode: 'insensitive' },
-      };
-    }
-
-    // Generic search_by + search
-    if (search && search_by) {
-      const searchFilter: Prisma.membershipWhereInput = (() => {
-        switch (search_by) {
-          case 'name':
-            return {
-              users: {
-                OR: [
-                  { first_name: { contains: search, mode: 'insensitive' } },
-                  { last_name: { contains: search, mode: 'insensitive' } },
-                ],
-              },
-            };
-          case 'email':
-            return {
-              users: { email: { contains: search, mode: 'insensitive' } },
-            };
-          case 'phone':
-            return {
-              users: { phone: { contains: search, mode: 'insensitive' } },
-            };
-          default:
-            return {};
-        }
-      })();
-
-      // Merge with existing where using AND
-      if (Object.keys(where).length > 0) {
-        where.AND = [searchFilter];
-      } else {
-        Object.assign(where, searchFilter);
-      }
-    }
-
-    // Build orderBy based on sort_by
-    const orderBy: Prisma.membershipOrderByWithRelationInput = (() => {
-      switch (sort_by) {
-        case 'first_name':
-        case 'email':
-          return { users: { [sort_by]: sort_order } };
-        default:
-          return { [sort_by]: sort_order };
-      }
-    })();
-
-    const skip = (page - 1) * limit;
+    const { page, limit, sort_by, sort_order } = query;
+    const where = buildMembershipWhere(query);
 
     const [data, total] = await Promise.all([
       prisma.membership.findMany({
         where,
-        orderBy,
-        skip,
-        take: +limit,
-        include: {
-          users: {
-            select: {
-              id: true,
-              email: true,
-              phone: true,
-              first_name: true,
-              last_name: true,
-              role: true,
-            },
-          },
-          tiers: {
-            select: {
-              id: true,
-              name: true,
-              required_points: true,
-            },
-          },
-        },
+        orderBy: buildMembershipOrderBy(sort_by, sort_order),
+        skip: (page - 1) * limit,
+        take: limit,
+        include: MEMBERSHIP_LIST_INCLUDE,
       }),
       prisma.membership.count({ where }),
     ]);
 
-    const normalizedData = data.map((item) => ({
-      ...item,
-      users: item.users
-        ? {
-            ...item.users,
-            last_name: item.users.last_name ?? undefined,
-          }
-        : undefined,
-    }));
-
-    const total_pages = Math.ceil(total / limit);
-
-    return {
-      data: normalizedData as MembershipItem[],
-      pagination: {
-        current_page: page,
-        total_page: total_pages,
-        total_data: total,
-        next: page < total_pages ? `?page=${page + 1}&limit=${limit}` : null,
-        prev: page > 1 ? `?page=${page - 1}&limit=${limit}` : null,
-      },
-    };
+    return { data, pagination: buildPagination(page, limit, total) };
   } catch (error) {
     console.error('Error in JGetMembershipListJob:', error);
     throw error;
   }
-}
+};

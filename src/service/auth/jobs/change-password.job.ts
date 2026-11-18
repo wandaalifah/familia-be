@@ -12,7 +12,7 @@ export const JChangePasswordJob = async (
     const { old_password, new_password } = body;
 
     // Find the authenticated user
-    const user = await prisma.users.findUnique({ where: { id: userId } });
+    const user = await prisma.users.findFirst({ where: { id: userId, deleted_at: null } });
 
     if (!user) {
       throw new UnauthorizedException('User not found');
@@ -35,7 +35,8 @@ export const JChangePasswordJob = async (
 
     await prisma.users.update({
       where: { id: userId },
-      data: { password: hashedPassword },
+      // Revoke the refresh token so other sessions must log in again
+      data: { password: hashedPassword, hashed_refresh_token: null },
     });
 
     return { message: 'Password changed successfully' };

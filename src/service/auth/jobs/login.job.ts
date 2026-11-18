@@ -5,6 +5,9 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { CLoginDto, LoginResponse } from '../dto/login.dto';
 import { IGlobalResponseDto } from 'src/common/dto/response.dto';
 
+// Valid bcrypt hash (cost 10) of a random string; only used to equalise timing
+const DUMMY_PASSWORD_HASH = '$2b$10$5J4NxbZbFNc0I8h7Q6/hFOP3Mta/JeipmPYKhdIdXuLkHpCei9Une';
+
 export const JLoginJob = async (
   prisma: PrismaService,
   jwtService: JwtService,
@@ -24,13 +27,9 @@ export const JLoginJob = async (
       },
     });
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
+    // Always run one bcrypt comparison so response time doesn't reveal whether the user exists
+    const isPasswordValid = await bcrypt.compare(password, user?.password ?? DUMMY_PASSWORD_HASH);
+    if (!user || !isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 

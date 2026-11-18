@@ -4,6 +4,8 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { CRegisterClientDto, RegisterClientResponse } from '../dto/register-client.dto';
 import { Role } from '@prisma/client';
 
+import { USER_SECRET_OMIT } from '../user-secret-omit';
+
 export const JRegisterClientJob = async (
   prisma: PrismaService,
   body: CRegisterClientDto,
@@ -55,6 +57,7 @@ export const JRegisterClientJob = async (
       // 3. Return user with membership and tier
       return tx.users.findUniqueOrThrow({
         where: { id: createdUser.id },
+        omit: USER_SECRET_OMIT,
         include: {
           membership: {
             include: {

@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node10",
+    "resolvePackageJsonExports": false,
+    "incremental": false,
+    "noEmit": false
+  },
+  "ts-node": { "transpileOnly": true },
+  "include": ["seed.ts", "../src/common/dto/password.dto.ts"]
+}

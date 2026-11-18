@@ -7,6 +7,8 @@ export const updateTierSchema = z.object({
   description: z.string().optional(),
   level: z.coerce.number().int().min(0).optional(),
   required_points: z.coerce.number().int().min(0).optional(),
+  // Re-evaluate every member's tier after this update
+  resync_members: z.boolean().default(false),
 });
 
 export class CUpdateTierDto extends createZodDto(updateTierSchema) {}
