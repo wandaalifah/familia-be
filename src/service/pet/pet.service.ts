@@ -1,6 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/common/prisma/prisma.service";
-import { CGetPetListDto } from "./dto/list.dto";
+import { ExcelExportService } from "src/common/services/excel-export.service";
+import { CExportPetDto, CGetPetListDto } from "./dto/list.dto";
+import { JExportPetJob } from "./jobs/export.job";
+import { JRestorePetJob } from "./jobs/restore.job";
 import { CCreatePetDto } from "./dto/create.dto";
 import { CUpdatePetDto } from "./dto/update.dto";
 import { JGetPetListJob } from "./jobs/list.job";
@@ -11,7 +14,18 @@ import { JDeletePetJob } from "./jobs/delete.job";
 
 @Injectable()
 export class PetService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly excel: ExcelExportService,
+  ) {}
+
+  exportPet = (
+    query: CExportPetDto,
+  ) => JExportPetJob(this.prisma, this.excel, query);
+
+  restorePet = (
+    id: string,
+  ) => JRestorePetJob(this.prisma, id);
 
   getPetList = (
     query: CGetPetListDto,

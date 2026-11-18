@@ -8,8 +8,8 @@ export const createMembershipSchema = z.object({
   phone: z.string().min(8),
   first_name: z.string().min(1),
   last_name: z.string().optional(),
-  // Optional initial password (falls back to default 'secret123' when empty)
-  password: passwordSchema.or(z.literal('')).optional(),
+  // Initial password is required: there is no shared default password
+  password: passwordSchema,
 });
 
 export class CCreateMembershipDto extends createZodDto(createMembershipSchema) {}

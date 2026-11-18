@@ -13,6 +13,7 @@ export const registerClientSchema = z.object({
 export class CRegisterClientDto extends createZodDto(registerClientSchema) {}
 
 export type RegisterClientResponse = Prisma.usersGetPayload<{
+  omit: { password: true; hashed_refresh_token: true };
   include: {
     membership: {
       include: {

@@ -15,8 +15,7 @@ export const JCreateMembershipJob = async (
       orderBy: { level: 'asc' },
     });
 
-    // Hash password (fall back to default when not provided)
-    const hashedPassword = await bcrypt.hash(password || 'secret123', 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user and membership in a transaction
     const result = await prisma.$transaction(async (tx) => {

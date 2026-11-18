@@ -9,8 +9,10 @@ export const JCreatePetJob = async (
   try {
     const { userId, name, species, breed, birth_date, is_neutered, avatar } = body;
 
-    // Ensure the owner exists
-    const user = await prisma.users.findUnique({ where: { id: userId } });
+    // Ensure the owner exists and is not soft-deleted
+    const user = await prisma.users.findFirst({
+      where: { id: userId, deleted_at: null },
+    });
 
     if (!user) {
       throw new NotFoundException('User not found');

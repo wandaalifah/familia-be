@@ -4,6 +4,8 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { CRegisterAdminDto, RegisterAdminResponse } from '../dto/register-admin.dto';
 import { Role } from '@prisma/client';
 
+import { USER_SECRET_OMIT } from '../user-secret-omit';
+
 export const JRegisterAdminJob = async (
   prisma: PrismaService,
   body: CRegisterAdminDto,
@@ -35,6 +37,7 @@ export const JRegisterAdminJob = async (
         last_name,
         role: Role.ADMIN,
       },
+      omit: USER_SECRET_OMIT,
     });
 
     return user;

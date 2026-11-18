@@ -1,6 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/common/prisma/prisma.service";
-import { CGetMedicalHistoryListDto } from "./dto/list.dto";
+import { ExcelExportService } from "src/common/services/excel-export.service";
+import { CExportMedicalHistoryDto, CGetMedicalHistoryListDto, CGetUpcomingDuesDto } from "./dto/list.dto";
+import { JExportMedicalHistoryJob } from "./jobs/export.job";
+import { JGetUpcomingDuesJob } from "./jobs/upcoming-dues.job";
+import { CGetVaccinesDto } from "./dto/vaccines.dto";
+import { JGetVaccinesJob } from "./jobs/vaccines.job";
 import { CCreateMedicalHistoryDto } from "./dto/create.dto";
 import { CUpdateMedicalHistoryDto } from "./dto/update.dto";
 import { JGetMedicalHistoryListJob } from "./jobs/list.job";
@@ -11,11 +16,26 @@ import { JDeleteMedicalHistoryJob } from "./jobs/delete.job";
 
 @Injectable()
 export class MedicalHistoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly excel: ExcelExportService,
+  ) {}
+
+  exportMedicalHistory = (
+    query: CExportMedicalHistoryDto,
+  ) => JExportMedicalHistoryJob(this.prisma, this.excel, query);
 
   getMedicalHistoryList = (
     query: CGetMedicalHistoryListDto,
   ) => JGetMedicalHistoryListJob(this.prisma, query);
+
+  getVaccines = (
+    query: CGetVaccinesDto,
+  ) => JGetVaccinesJob(this.prisma, query);
+
+  getUpcomingDues = (
+    query: CGetUpcomingDuesDto,
+  ) => JGetUpcomingDuesJob(this.prisma, query);
 
   getMedicalHistoryDetail = (
     id: string,
